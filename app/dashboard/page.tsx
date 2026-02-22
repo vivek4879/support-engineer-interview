@@ -129,7 +129,6 @@ export default function DashboardPage() {
           onClose={() => setFundingAccountId(null)}
           onSuccess={() => {
             setFundingAccountId(null);
-            refetchAccounts();
           }}
         />
       )}

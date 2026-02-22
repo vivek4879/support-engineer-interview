@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { trpc } from "@/lib/trpc/client";
+import { refreshQueriesAfterFunding } from "@/lib/utils/query-refresh";
 
 interface FundingModalProps {
   accountId: number;
@@ -18,6 +19,7 @@ type FundingFormData = {
 };
 
 export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProps) {
+  const utils = trpc.useUtils();
   const [error, setError] = useState("");
   const {
     register,
@@ -48,6 +50,14 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
           routingNumber: data.routingNumber,
         },
       });
+
+      await refreshQueriesAfterFunding(
+        {
+          invalidateAccounts: () => utils.account.getAccounts.invalidate(),
+          invalidateTransactions: (id) => utils.account.getTransactions.invalidate({ accountId: id }),
+        },
+        accountId
+      );
 
       onSuccess();
     } catch (err: any) {
