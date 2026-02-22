@@ -1,20 +1,18 @@
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import * as schema from "./schema";
+import { getGlobalSingleton } from "@/lib/utils/global-singleton";
 
 const dbPath = "bank.db";
+const SQLITE_SINGLETON_KEY = "__securebank_sqlite__";
+const DB_INIT_FLAG_KEY = "__securebank_db_initialized__";
 
-const sqlite = new Database(dbPath);
+const sqlite = getGlobalSingleton(SQLITE_SINGLETON_KEY, () => new Database(dbPath));
 export const db = drizzle(sqlite, { schema });
 
-const connections: Database.Database[] = [];
-
-export function initDb() {
-  const conn = new Database(dbPath);
-  connections.push(conn);
-
+export function initDb(connection: Database.Database) {
   // Create tables if they don't exist
-  sqlite.exec(`
+  connection.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
@@ -63,4 +61,8 @@ export function initDb() {
 }
 
 // Initialize database on import
-initDb();
+const globalRecord = globalThis as Record<string, unknown>;
+if (globalRecord[DB_INIT_FLAG_KEY] !== true) {
+  initDb(sqlite);
+  globalRecord[DB_INIT_FLAG_KEY] = true;
+}
