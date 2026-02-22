@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc/client";
 import Link from "next/link";
 import { validatePasswordStrength } from "@/lib/utils/password";
 import { validateDateOfBirth } from "@/lib/utils/date-of-birth";
+import { validateEmailForSignup } from "@/lib/utils/email";
 
 type SignupFormData = {
   email: string;
@@ -85,8 +86,11 @@ export default function SignupPage() {
                   {...register("email", {
                     required: "Email is required",
                     pattern: {
-                      value: /^\S+@\S+$/i,
+                      value: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
                       message: "Invalid email address",
+                    },
+                    validate: {
+                      emailSpecialCases: (value) => validateEmailForSignup(value) || true,
                     },
                   })}
                   type="email"

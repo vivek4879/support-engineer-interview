@@ -5,7 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { publicProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { users, sessions } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { hashSsn } from "@/lib/utils/ssn";
 import { getSessionTokenFromRequest } from "@/lib/utils/cookies";
 import {
@@ -17,13 +17,14 @@ import {
 } from "@/lib/utils/session";
 import { validatePasswordStrength } from "@/lib/utils/password";
 import { validateDateOfBirth } from "@/lib/utils/date-of-birth";
+import { normalizeEmailForLookup, validateEmailForSignup } from "@/lib/utils/email";
 
 export const authRouter = router({
   signup: publicProcedure
     .input(
       z
         .object({
-          email: z.string().email().toLowerCase(),
+          email: z.string().email(),
           password: z.string(),
           firstName: z.string().min(1),
           lastName: z.string().min(1),
@@ -53,10 +54,24 @@ export const authRouter = router({
               message: dateOfBirthIssue,
             });
           }
+
+          const emailIssue = validateEmailForSignup(input.email);
+          if (emailIssue) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["email"],
+              message: emailIssue,
+            });
+          }
         })
     )
     .mutation(async ({ input, ctx }) => {
-      const existingUser = await db.select().from(users).where(eq(users.email, input.email)).get();
+      const lookupEmail = normalizeEmailForLookup(input.email);
+      const existingUser = await db
+        .select()
+        .from(users)
+        .where(sql`lower(${users.email}) = ${lookupEmail}`)
+        .get();
 
       if (existingUser) {
         throw new TRPCError({
@@ -123,7 +138,12 @@ export const authRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const user = await db.select().from(users).where(eq(users.email, input.email)).get();
+      const lookupEmail = normalizeEmailForLookup(input.email);
+      const user = await db
+        .select()
+        .from(users)
+        .where(sql`lower(${users.email}) = ${lookupEmail}`)
+        .get();
 
       if (!user) {
         throw new TRPCError({

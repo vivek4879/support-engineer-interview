@@ -29,6 +29,9 @@ export function initDb(connection: Database.Database) {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_unique
+    ON users(lower(email));
+
     CREATE TABLE IF NOT EXISTS accounts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id),
