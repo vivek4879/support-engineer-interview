@@ -16,6 +16,7 @@ import {
   SESSION_MAX_AGE_SECONDS,
 } from "@/lib/utils/session";
 import { validatePasswordStrength } from "@/lib/utils/password";
+import { validateDateOfBirth } from "@/lib/utils/date-of-birth";
 
 export const authRouter = router({
   signup: publicProcedure
@@ -41,6 +42,15 @@ export const authRouter = router({
               code: z.ZodIssueCode.custom,
               path: ["password"],
               message: passwordIssue,
+            });
+          }
+
+          const dateOfBirthIssue = validateDateOfBirth(input.dateOfBirth);
+          if (dateOfBirthIssue) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["dateOfBirth"],
+              message: dateOfBirthIssue,
             });
           }
         })

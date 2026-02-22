@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { trpc } from "@/lib/trpc/client";
 import Link from "next/link";
 import { validatePasswordStrength } from "@/lib/utils/password";
+import { validateDateOfBirth } from "@/lib/utils/date-of-birth";
 
 type SignupFormData = {
   email: string;
@@ -186,7 +187,12 @@ export default function SignupPage() {
                   Date of Birth
                 </label>
                 <input
-                  {...register("dateOfBirth", { required: "Date of birth is required" })}
+                  {...register("dateOfBirth", {
+                    required: "Date of birth is required",
+                    validate: {
+                      validDob: (value) => validateDateOfBirth(value) || true,
+                    },
+                  })}
                   type="date"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
                 />
