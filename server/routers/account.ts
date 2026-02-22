@@ -9,6 +9,7 @@ import { requireEntity } from "@/lib/utils/guards";
 import { escapeHtml } from "@/lib/utils/sanitize";
 import { generateSecureAccountNumber } from "@/lib/utils/account-number";
 import { isValidCardNumber } from "@/lib/utils/card";
+import { isValidRoutingNumber } from "@/lib/utils/bank";
 
 export const accountRouter = router({
   createAccount: protectedProcedure
@@ -86,6 +87,26 @@ export const accountRouter = router({
               path: ["fundingSource", "accountNumber"],
               message: "Invalid card number",
             });
+          }
+
+          if (input.fundingSource.type === "bank") {
+            const routingNumber = input.fundingSource.routingNumber?.trim();
+            if (!routingNumber) {
+              refinementCtx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["fundingSource", "routingNumber"],
+                message: "Routing number is required for bank transfers",
+              });
+              return;
+            }
+
+            if (!isValidRoutingNumber(routingNumber)) {
+              refinementCtx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["fundingSource", "routingNumber"],
+                message: "Routing number must be 9 digits",
+              });
+            }
           }
         })
     )

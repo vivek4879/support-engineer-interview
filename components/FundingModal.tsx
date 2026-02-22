@@ -43,6 +43,7 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
       const amount = parseFloat(data.amount);
       const normalizedAccountNumber =
         data.fundingType === "card" ? normalizeCardNumber(data.accountNumber) : data.accountNumber;
+      const normalizedRoutingNumber = data.fundingType === "bank" ? data.routingNumber?.trim() : undefined;
 
       await fundAccountMutation.mutateAsync({
         accountId,
@@ -50,7 +51,7 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
         fundingSource: {
           type: data.fundingType,
           accountNumber: normalizedAccountNumber,
-          routingNumber: data.routingNumber,
+          routingNumber: normalizedRoutingNumber,
         },
       });
 
