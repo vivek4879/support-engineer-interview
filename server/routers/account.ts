@@ -213,17 +213,10 @@ export const accountRouter = router({
         .from(transactions)
         .where(eq(transactions.accountId, input.accountId));
 
-      const enrichedTransactions = [];
-      for (const transaction of accountTransactions) {
-        const accountDetails = await db.select().from(accounts).where(eq(accounts.id, transaction.accountId)).get();
-
-        enrichedTransactions.push({
-          ...transaction,
-          description: transaction.description ? escapeHtml(transaction.description) : transaction.description,
-          accountType: accountDetails?.accountType,
-        });
-      }
-
-      return enrichedTransactions;
+      return accountTransactions.map((transaction) => ({
+        ...transaction,
+        description: transaction.description ? escapeHtml(transaction.description) : transaction.description,
+        accountType: account.accountType,
+      }));
     }),
 });
