@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { trpc } from "@/lib/trpc/client";
 import { refreshQueriesAfterFunding } from "@/lib/utils/query-refresh";
+import { isValidCardNumber, normalizeCardNumber } from "@/lib/utils/card";
 
 interface FundingModalProps {
   accountId: number;
@@ -40,13 +41,15 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
 
     try {
       const amount = parseFloat(data.amount);
+      const normalizedAccountNumber =
+        data.fundingType === "card" ? normalizeCardNumber(data.accountNumber) : data.accountNumber;
 
       await fundAccountMutation.mutateAsync({
         accountId,
         amount,
         fundingSource: {
           type: data.fundingType,
-          accountNumber: data.accountNumber,
+          accountNumber: normalizedAccountNumber,
           routingNumber: data.routingNumber,
         },
       });
@@ -123,13 +126,13 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
               {...register("accountNumber", {
                 required: `${fundingType === "card" ? "Card" : "Account"} number is required`,
                 pattern: {
-                  value: fundingType === "card" ? /^\d{16}$/ : /^\d+$/,
-                  message: fundingType === "card" ? "Card number must be 16 digits" : "Invalid account number",
+                  value: fundingType === "card" ? /^[\d\s-]+$/ : /^\d+$/,
+                  message: fundingType === "card" ? "Card number can only contain digits, spaces, or hyphens" : "Invalid account number",
                 },
                 validate: {
                   validCard: (value) => {
                     if (fundingType !== "card") return true;
-                    return value.startsWith("4") || value.startsWith("5") || "Invalid card number";
+                    return isValidCardNumber(value) || "Enter a valid card number";
                   },
                 },
               })}

@@ -8,6 +8,7 @@ import { normalizeCurrencyAmount } from "@/lib/utils/money";
 import { requireEntity } from "@/lib/utils/guards";
 import { escapeHtml } from "@/lib/utils/sanitize";
 import { generateSecureAccountNumber } from "@/lib/utils/account-number";
+import { isValidCardNumber } from "@/lib/utils/card";
 
 export const accountRouter = router({
   createAccount: protectedProcedure
@@ -68,15 +69,25 @@ export const accountRouter = router({
 
   fundAccount: protectedProcedure
     .input(
-      z.object({
-        accountId: z.number(),
-        amount: z.number().positive(),
-        fundingSource: z.object({
-          type: z.enum(["card", "bank"]),
-          accountNumber: z.string(),
-          routingNumber: z.string().optional(),
-        }),
-      })
+      z
+        .object({
+          accountId: z.number(),
+          amount: z.number().positive(),
+          fundingSource: z.object({
+            type: z.enum(["card", "bank"]),
+            accountNumber: z.string(),
+            routingNumber: z.string().optional(),
+          }),
+        })
+        .superRefine((input, refinementCtx) => {
+          if (input.fundingSource.type === "card" && !isValidCardNumber(input.fundingSource.accountNumber)) {
+            refinementCtx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["fundingSource", "accountNumber"],
+              message: "Invalid card number",
+            });
+          }
+        })
     )
     .mutation(async ({ input, ctx }) => {
       const amount = normalizeCurrencyAmount(input.amount);
