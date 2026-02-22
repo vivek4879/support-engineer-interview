@@ -88,13 +88,9 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
                     value: /^\d+\.?\d{0,2}$/,
                     message: "Invalid amount format",
                   },
-                  min: {
-                    value: 0.0,
-                    message: "Amount must be at least $0.01",
-                  },
-                  max: {
-                    value: 10000,
-                    message: "Amount cannot exceed $10,000",
+                  validate: {
+                    minAmount: (value) => parseFloat(value) >= 0.01 || "Amount must be at least $0.01",
+                    maxAmount: (value) => parseFloat(value) <= 10000 || "Amount cannot exceed $10,000",
                   },
                 })}
                 type="text"

@@ -4,7 +4,7 @@ import { protectedProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { accounts, transactions } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { normalizeCurrencyAmount } from "@/lib/utils/money";
+import { isValidFundingAmount, normalizeCurrencyAmount } from "@/lib/utils/money";
 import { requireEntity } from "@/lib/utils/guards";
 import { escapeHtml } from "@/lib/utils/sanitize";
 import { generateSecureAccountNumber } from "@/lib/utils/account-number";
@@ -73,7 +73,9 @@ export const accountRouter = router({
       z
         .object({
           accountId: z.number(),
-          amount: z.number().positive(),
+          amount: z.number().finite().refine(isValidFundingAmount, {
+            message: "Amount must be at least $0.01",
+          }),
           fundingSource: z.object({
             type: z.enum(["card", "bank"]),
             accountNumber: z.string(),
@@ -112,6 +114,12 @@ export const accountRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const amount = normalizeCurrencyAmount(input.amount);
+      if (!isValidFundingAmount(amount)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Amount must be at least $0.01",
+        });
+      }
 
       const result = db.transaction((tx) => {
         // Verify account belongs to user

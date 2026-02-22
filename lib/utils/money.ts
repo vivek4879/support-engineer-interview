@@ -17,3 +17,11 @@ export function normalizeCurrencyAmount(amount: number): number {
 export function addCurrencyAmounts(left: number, right: number): number {
   return fromCents(toCents(left) + toCents(right));
 }
+
+export function isValidFundingAmount(amount: number): boolean {
+  if (!Number.isFinite(amount)) {
+    return false;
+  }
+
+  return amount >= 0.01;
+}
