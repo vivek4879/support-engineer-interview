@@ -19,6 +19,7 @@ import { validatePasswordStrength } from "@/lib/utils/password";
 import { validateDateOfBirth } from "@/lib/utils/date-of-birth";
 import { normalizeEmailForLookup, validateEmailForSignup } from "@/lib/utils/email";
 import { isValidUsStateCode } from "@/lib/utils/state";
+import { normalizePhoneNumber, validateInternationalPhoneNumber } from "@/lib/utils/phone";
 
 export const authRouter = router({
   signup: publicProcedure
@@ -29,7 +30,7 @@ export const authRouter = router({
           password: z.string(),
           firstName: z.string().min(1),
           lastName: z.string().min(1),
-          phoneNumber: z.string().regex(/^\+?\d{10,15}$/),
+          phoneNumber: z.string().min(1),
           dateOfBirth: z.string(),
           ssn: z.string().regex(/^\d{9}$/),
           address: z.string().min(1),
@@ -72,6 +73,15 @@ export const authRouter = router({
               message: "Use a valid US state code (for example, CA or NY)",
             });
           }
+
+          const phoneIssue = validateInternationalPhoneNumber(input.phoneNumber);
+          if (phoneIssue) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["phoneNumber"],
+              message: phoneIssue,
+            });
+          }
         })
     )
     .mutation(async ({ input, ctx }) => {
@@ -91,9 +101,11 @@ export const authRouter = router({
 
       const hashedPassword = await bcrypt.hash(input.password, 10);
       const hashedSsn = await hashSsn(input.ssn);
+      const normalizedPhoneNumber = normalizePhoneNumber(input.phoneNumber);
 
       await db.insert(users).values({
         ...input,
+        phoneNumber: normalizedPhoneNumber,
         password: hashedPassword,
         ssn: hashedSsn,
       });
