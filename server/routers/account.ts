@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { accounts, transactions } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { normalizeCurrencyAmount } from "@/lib/utils/money";
+import { requireEntity } from "@/lib/utils/guards";
 
 function generateAccountNumber(): string {
   return Math.floor(Math.random() * 1000000000)
@@ -20,52 +21,47 @@ export const accountRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      // Check if user already has an account of this type
-      const existingAccount = await db
-        .select()
-        .from(accounts)
-        .where(and(eq(accounts.userId, ctx.user.id), eq(accounts.accountType, input.accountType)))
-        .get();
+      const account = db.transaction((tx) => {
+        // Check if user already has an account of this type
+        const existingAccount = tx
+          .select()
+          .from(accounts)
+          .where(and(eq(accounts.userId, ctx.user.id), eq(accounts.accountType, input.accountType)))
+          .get();
 
-      if (existingAccount) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: `You already have a ${input.accountType} account`,
-        });
-      }
+        if (existingAccount) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `You already have a ${input.accountType} account`,
+          });
+        }
 
-      let accountNumber;
-      let isUnique = false;
+        let accountNumber;
+        let isUnique = false;
 
-      // Generate unique account number
-      while (!isUnique) {
-        accountNumber = generateAccountNumber();
-        const existing = await db.select().from(accounts).where(eq(accounts.accountNumber, accountNumber)).get();
-        isUnique = !existing;
-      }
+        // Generate unique account number
+        while (!isUnique) {
+          accountNumber = generateAccountNumber();
+          const existing = tx.select().from(accounts).where(eq(accounts.accountNumber, accountNumber)).get();
+          isUnique = !existing;
+        }
 
-      await db.insert(accounts).values({
-        userId: ctx.user.id,
-        accountNumber: accountNumber!,
-        accountType: input.accountType,
-        balance: 0,
-        status: "active",
+        const createdAccount = tx
+          .insert(accounts)
+          .values({
+            userId: ctx.user.id,
+            accountNumber: accountNumber!,
+            accountType: input.accountType,
+            balance: 0,
+            status: "active",
+          })
+          .returning()
+          .get();
+
+        return requireEntity(createdAccount, "Failed to create account");
       });
 
-      // Fetch the created account
-      const account = await db.select().from(accounts).where(eq(accounts.accountNumber, accountNumber!)).get();
-
-      return (
-        account || {
-          id: 0,
-          userId: ctx.user.id,
-          accountNumber: accountNumber!,
-          accountType: input.accountType,
-          balance: 100,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-        }
-      );
+      return account;
     }),
 
   getAccounts: protectedProcedure.query(async ({ ctx }) => {
