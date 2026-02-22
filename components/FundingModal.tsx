@@ -83,13 +83,13 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span className="text-gray-500 sm:text-sm">$</span>
               </div>
-                <input
-                  {...register("amount", {
-                    required: "Amount is required",
-                    validate: {
-                      validAmountInput: (value) => validateFundingAmountInput(value) || true,
-                    },
-                  })}
+              <input
+                {...register("amount", {
+                  required: "Amount is required",
+                  validate: {
+                    validAmountInput: (value) => validateFundingAmountInput(value) || true,
+                  },
+                })}
                 type="text"
                 className="pl-7 block w-full rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border"
                 placeholder="0.00"
