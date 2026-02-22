@@ -7,12 +7,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { normalizeCurrencyAmount } from "@/lib/utils/money";
 import { requireEntity } from "@/lib/utils/guards";
 import { escapeHtml } from "@/lib/utils/sanitize";
-
-function generateAccountNumber(): string {
-  return Math.floor(Math.random() * 1000000000)
-    .toString()
-    .padStart(10, "0");
-}
+import { generateSecureAccountNumber } from "@/lib/utils/account-number";
 
 export const accountRouter = router({
   createAccount: protectedProcedure
@@ -42,7 +37,7 @@ export const accountRouter = router({
 
         // Generate unique account number
         while (!isUnique) {
-          accountNumber = generateAccountNumber();
+          accountNumber = generateSecureAccountNumber();
           const existing = tx.select().from(accounts).where(eq(accounts.accountNumber, accountNumber)).get();
           isUnique = !existing;
         }
