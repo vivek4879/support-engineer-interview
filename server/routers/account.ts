@@ -3,13 +3,14 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { accounts, transactions } from "@/lib/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { isValidFundingAmount, normalizeCurrencyAmount } from "@/lib/utils/money";
 import { requireEntity } from "@/lib/utils/guards";
 import { escapeHtml } from "@/lib/utils/sanitize";
 import { generateSecureAccountNumber } from "@/lib/utils/account-number";
 import { isValidCardNumber } from "@/lib/utils/card";
 import { isValidRoutingNumber } from "@/lib/utils/bank";
+import { sortTransactionsNewestFirst } from "@/lib/utils/transactions";
 
 export const accountRouter = router({
   createAccount: protectedProcedure
@@ -211,12 +212,15 @@ export const accountRouter = router({
       const accountTransactions = await db
         .select()
         .from(transactions)
-        .where(eq(transactions.accountId, input.accountId));
+        .where(eq(transactions.accountId, input.accountId))
+        .orderBy(desc(transactions.createdAt), desc(transactions.id));
 
-      return accountTransactions.map((transaction) => ({
+      const formattedTransactions = accountTransactions.map((transaction) => ({
         ...transaction,
         description: transaction.description ? escapeHtml(transaction.description) : transaction.description,
         accountType: account.accountType,
       }));
+
+      return sortTransactionsNewestFirst(formattedTransactions);
     }),
 });
