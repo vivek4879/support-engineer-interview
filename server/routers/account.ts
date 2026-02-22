@@ -3,7 +3,8 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "../trpc";
 import { db } from "@/lib/db";
 import { accounts, transactions } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
+import { normalizeCurrencyAmount } from "@/lib/utils/money";
 
 function generateAccountNumber(): string {
   return Math.floor(Math.random() * 1000000000)
@@ -86,59 +87,72 @@ export const accountRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const amount = parseFloat(input.amount.toString());
+      const amount = normalizeCurrencyAmount(input.amount);
 
-      // Verify account belongs to user
-      const account = await db
-        .select()
-        .from(accounts)
-        .where(and(eq(accounts.id, input.accountId), eq(accounts.userId, ctx.user.id)))
-        .get();
+      const result = db.transaction((tx) => {
+        // Verify account belongs to user
+        const account = tx
+          .select()
+          .from(accounts)
+          .where(and(eq(accounts.id, input.accountId), eq(accounts.userId, ctx.user.id)))
+          .get();
 
-      if (!account) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Account not found",
-        });
-      }
+        if (!account) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Account not found",
+          });
+        }
 
-      if (account.status !== "active") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Account is not active",
-        });
-      }
+        if (account.status !== "active") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Account is not active",
+          });
+        }
 
-      // Create transaction
-      await db.insert(transactions).values({
-        accountId: input.accountId,
-        type: "deposit",
-        amount,
-        description: `Funding from ${input.fundingSource.type}`,
-        status: "completed",
-        processedAt: new Date().toISOString(),
+        // Create transaction and balance update in the same DB transaction.
+        const transaction = tx
+          .insert(transactions)
+          .values({
+            accountId: input.accountId,
+            type: "deposit",
+            amount,
+            description: `Funding from ${input.fundingSource.type}`,
+            status: "completed",
+            processedAt: new Date().toISOString(),
+          })
+          .returning()
+          .get();
+
+        tx
+          .update(accounts)
+          .set({
+            balance: sql`ROUND(${accounts.balance} + ${amount}, 2)`,
+          })
+          .where(eq(accounts.id, input.accountId))
+          .run();
+
+        const updatedAccount = tx
+          .select({ balance: accounts.balance })
+          .from(accounts)
+          .where(eq(accounts.id, input.accountId))
+          .get();
+
+        if (!updatedAccount) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to update account balance",
+          });
+        }
+
+        return {
+          transaction,
+          newBalance: updatedAccount.balance,
+        };
       });
 
-      // Fetch the created transaction
-      const transaction = await db.select().from(transactions).orderBy(transactions.createdAt).limit(1).get();
-
-      // Update account balance
-      await db
-        .update(accounts)
-        .set({
-          balance: account.balance + amount,
-        })
-        .where(eq(accounts.id, input.accountId));
-
-      let finalBalance = account.balance;
-      for (let i = 0; i < 100; i++) {
-        finalBalance = finalBalance + amount / 100;
-      }
-
-      return {
-        transaction,
-        newBalance: finalBalance, // This will be slightly off due to float precision
-      };
+      return result;
     }),
 
   getTransactions: protectedProcedure
