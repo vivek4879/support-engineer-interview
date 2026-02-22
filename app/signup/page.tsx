@@ -8,6 +8,7 @@ import Link from "next/link";
 import { validatePasswordStrength } from "@/lib/utils/password";
 import { validateDateOfBirth } from "@/lib/utils/date-of-birth";
 import { validateEmailForSignup } from "@/lib/utils/email";
+import { isValidUsStateCode } from "@/lib/utils/state";
 
 type SignupFormData = {
   email: string;
@@ -259,8 +260,11 @@ export default function SignupPage() {
                     {...register("state", {
                       required: "State is required",
                       pattern: {
-                        value: /^[A-Z]{2}$/,
+                        value: /^[A-Za-z]{2}$/,
                         message: "Use 2-letter state code",
+                      },
+                      validate: {
+                        validState: (value) => isValidUsStateCode(value) || "Use a valid US state code",
                       },
                     })}
                     type="text"

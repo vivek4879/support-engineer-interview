@@ -1,0 +1,68 @@
+const US_STATE_CODES = [
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
+  "DC",
+  "AS",
+  "GU",
+  "MP",
+  "PR",
+  "VI",
+] as const;
+
+const US_STATE_CODE_SET = new Set<string>(US_STATE_CODES);
+
+export function normalizeUsStateCode(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+export function isValidUsStateCode(value: string): boolean {
+  return US_STATE_CODE_SET.has(normalizeUsStateCode(value));
+}

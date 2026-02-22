@@ -18,6 +18,7 @@ import {
 import { validatePasswordStrength } from "@/lib/utils/password";
 import { validateDateOfBirth } from "@/lib/utils/date-of-birth";
 import { normalizeEmailForLookup, validateEmailForSignup } from "@/lib/utils/email";
+import { isValidUsStateCode } from "@/lib/utils/state";
 
 export const authRouter = router({
   signup: publicProcedure
@@ -61,6 +62,14 @@ export const authRouter = router({
               code: z.ZodIssueCode.custom,
               path: ["email"],
               message: emailIssue,
+            });
+          }
+
+          if (!isValidUsStateCode(input.state)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["state"],
+              message: "Use a valid US state code (for example, CA or NY)",
             });
           }
         })
