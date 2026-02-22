@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { users, sessions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { hashSsn } from "@/lib/utils/ssn";
+import { getSessionTokenFromRequest } from "@/lib/utils/cookies";
+import { createSessionExpiryIso, replaceUserSession, SESSION_MAX_AGE_SECONDS } from "@/lib/utils/session";
 
 export const authRouter = router({
   signup: publicProcedure
@@ -59,20 +61,26 @@ export const authRouter = router({
         expiresIn: "7d",
       });
 
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
-
-      await db.insert(sessions).values({
-        userId: user.id,
-        token,
-        expiresAt: expiresAt.toISOString(),
+      const expiresAt = createSessionExpiryIso();
+      db.transaction((tx) => {
+        replaceUserSession(tx, {
+          userId: user.id,
+          token,
+          expiresAt,
+        });
       });
 
       // Set cookie
       if ("setHeader" in ctx.res) {
-        ctx.res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+        ctx.res.setHeader(
+          "Set-Cookie",
+          `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MAX_AGE_SECONDS}`
+        );
       } else {
-        (ctx.res as Headers).set("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+        (ctx.res as Headers).set(
+          "Set-Cookie",
+          `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MAX_AGE_SECONDS}`
+        );
       }
 
       const { password: _password, ssn: _ssn, ...safeUser } = user;
@@ -109,19 +117,25 @@ export const authRouter = router({
         expiresIn: "7d",
       });
 
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
-
-      await db.insert(sessions).values({
-        userId: user.id,
-        token,
-        expiresAt: expiresAt.toISOString(),
+      const expiresAt = createSessionExpiryIso();
+      db.transaction((tx) => {
+        replaceUserSession(tx, {
+          userId: user.id,
+          token,
+          expiresAt,
+        });
       });
 
       if ("setHeader" in ctx.res) {
-        ctx.res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+        ctx.res.setHeader(
+          "Set-Cookie",
+          `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MAX_AGE_SECONDS}`
+        );
       } else {
-        (ctx.res as Headers).set("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+        (ctx.res as Headers).set(
+          "Set-Cookie",
+          `session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MAX_AGE_SECONDS}`
+        );
       }
 
       const { password: _password, ssn: _ssn, ...safeUser } = user;
@@ -129,21 +143,9 @@ export const authRouter = router({
     }),
 
   logout: publicProcedure.mutation(async ({ ctx }) => {
-    if (ctx.user) {
-      // Delete session from database
-      let token: string | undefined;
-      if ("cookies" in ctx.req) {
-        token = (ctx.req as any).cookies.session;
-      } else {
-        const cookieHeader = ctx.req.headers.get?.("cookie") || (ctx.req.headers as any).cookie;
-        token = cookieHeader
-          ?.split("; ")
-          .find((c: string) => c.startsWith("session="))
-          ?.split("=")[1];
-      }
-      if (token) {
-        await db.delete(sessions).where(eq(sessions.token, token));
-      }
+    const token = getSessionTokenFromRequest(ctx.req as any);
+    if (token) {
+      await db.delete(sessions).where(eq(sessions.token, token));
     }
 
     if ("setHeader" in ctx.res) {
@@ -152,6 +154,6 @@ export const authRouter = router({
       (ctx.res as Headers).set("Set-Cookie", `session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
     }
 
-    return { success: true, message: ctx.user ? "Logged out successfully" : "No active session" };
+    return { success: true, message: token ? "Logged out successfully" : "No active session" };
   }),
 });
