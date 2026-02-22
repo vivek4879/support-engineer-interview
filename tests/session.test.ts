@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { replaceUserSession } from "../lib/utils/session";
+import { buildLogoutResponse, deleteSessionByToken, replaceUserSession } from "../lib/utils/session";
 
 test("replaceUserSession keeps only one active session per user", () => {
   const calls: string[] = [];
@@ -47,4 +47,34 @@ test("replaceUserSession keeps only one active session per user", () => {
   assert.deepEqual(calls, ["delete", "delete-where", "delete-run", "insert", "insert-values", "insert-run"]);
   assert.deepEqual(deletedUserIds, [1]);
   assert.deepEqual(insertedTokens, ["second-token"]);
+});
+
+test("deleteSessionByToken returns deleted row count from DB run result", () => {
+  const calls: string[] = [];
+
+  const dbMock = {
+    delete() {
+      calls.push("delete");
+      return {
+        where() {
+          calls.push("where");
+          return {
+            run() {
+              calls.push("run");
+              return { changes: 1 };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const deleted = deleteSessionByToken(dbMock, "token-123");
+  assert.equal(deleted, 1);
+  assert.deepEqual(calls, ["delete", "where", "run"]);
+});
+
+test("buildLogoutResponse reports success only when a session row is deleted", () => {
+  assert.deepEqual(buildLogoutResponse(1), { success: true, message: "Logged out successfully" });
+  assert.deepEqual(buildLogoutResponse(0), { success: false, message: "No active session" });
 });

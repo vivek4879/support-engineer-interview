@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { sessions, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getSessionTokenFromRequest } from "@/lib/utils/cookies";
-import { isSessionUsable } from "@/lib/utils/session";
+import { deleteSessionByToken, isSessionUsable } from "@/lib/utils/session";
 
 function clearSessionCookie(res: any) {
   if ("setHeader" in res) {
@@ -46,7 +46,7 @@ export async function createContext(opts: CreateNextContextOptions | FetchCreate
         user = await db.select().from(users).where(eq(users.id, decoded.userId)).get();
       } else if (session) {
         // Revoke near-expiry/expired session to avoid ambiguous auth state.
-        await db.delete(sessions).where(eq(sessions.token, token));
+        deleteSessionByToken(db, token);
         clearSessionCookie(res);
       }
     } catch (error) {

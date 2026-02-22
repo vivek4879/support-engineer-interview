@@ -20,11 +20,11 @@ export function getCookieHeader(req: RequestWithHeaders): string {
 export function parseCookies(cookieHeader: string): Record<string, string> {
   return Object.fromEntries(
     cookieHeader
-      .split("; ")
+      .split(";")
       .filter(Boolean)
       .map((entry) => {
-        const [key, ...value] = entry.split("=");
-        return [key, value.join("=")];
+        const [key, ...value] = entry.trim().split("=");
+        return [key, value.join("=").trim()];
       })
   );
 }

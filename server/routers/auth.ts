@@ -8,7 +8,13 @@ import { users, sessions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { hashSsn } from "@/lib/utils/ssn";
 import { getSessionTokenFromRequest } from "@/lib/utils/cookies";
-import { createSessionExpiryIso, replaceUserSession, SESSION_MAX_AGE_SECONDS } from "@/lib/utils/session";
+import {
+  buildLogoutResponse,
+  createSessionExpiryIso,
+  deleteSessionByToken,
+  replaceUserSession,
+  SESSION_MAX_AGE_SECONDS,
+} from "@/lib/utils/session";
 
 export const authRouter = router({
   signup: publicProcedure
@@ -144,9 +150,7 @@ export const authRouter = router({
 
   logout: publicProcedure.mutation(async ({ ctx }) => {
     const token = getSessionTokenFromRequest(ctx.req as any);
-    if (token) {
-      await db.delete(sessions).where(eq(sessions.token, token));
-    }
+    const deletedSessions = token ? deleteSessionByToken(db, token) : 0;
 
     if ("setHeader" in ctx.res) {
       ctx.res.setHeader("Set-Cookie", `session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
@@ -154,6 +158,6 @@ export const authRouter = router({
       (ctx.res as Headers).set("Set-Cookie", `session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
     }
 
-    return { success: true, message: token ? "Logged out successfully" : "No active session" };
+    return buildLogoutResponse(deletedSessions);
   }),
 });

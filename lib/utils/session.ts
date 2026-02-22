@@ -25,3 +25,22 @@ export function replaceUserSession(db: any, values: SessionValues): void {
   db.delete(sessions).where(eq(sessions.userId, values.userId)).run();
   db.insert(sessions).values(values).run();
 }
+
+export function deleteSessionByToken(db: any, token: string): number {
+  const result = db.delete(sessions).where(eq(sessions.token, token)).run();
+  return typeof result?.changes === "number" ? result.changes : 0;
+}
+
+export function buildLogoutResponse(deletedSessions: number): { success: boolean; message: string } {
+  if (deletedSessions > 0) {
+    return {
+      success: true,
+      message: "Logged out successfully",
+    };
+  }
+
+  return {
+    success: false,
+    message: "No active session",
+  };
+}

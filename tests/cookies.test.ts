@@ -9,6 +9,13 @@ test("parseCookies handles multiple cookie pairs", () => {
   assert.equal(cookies.theme, "dark");
 });
 
+test("parseCookies handles cookie headers without spaces after semicolons", () => {
+  const cookies = parseCookies("foo=bar;session=abc123;theme=dark");
+  assert.equal(cookies.foo, "bar");
+  assert.equal(cookies.session, "abc123");
+  assert.equal(cookies.theme, "dark");
+});
+
 test("getSessionTokenFromRequest reads from fetch-style headers", () => {
   const token = getSessionTokenFromRequest({
     headers: {
