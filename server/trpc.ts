@@ -6,6 +6,15 @@ import { db } from "@/lib/db";
 import { sessions, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getSessionTokenFromRequest } from "@/lib/utils/cookies";
+import { isSessionUsable } from "@/lib/utils/session";
+
+function clearSessionCookie(res: any) {
+  if ("setHeader" in res) {
+    res.setHeader("Set-Cookie", `session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
+  } else {
+    (res as Headers).set("Set-Cookie", `session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
+  }
+}
 
 export async function createContext(opts: CreateNextContextOptions | FetchCreateContextFnOptions) {
   // Handle different adapter types
@@ -33,12 +42,12 @@ export async function createContext(opts: CreateNextContextOptions | FetchCreate
 
       const session = await db.select().from(sessions).where(eq(sessions.token, token)).get();
 
-      if (session && new Date(session.expiresAt) > new Date()) {
+      if (session && isSessionUsable(session.expiresAt)) {
         user = await db.select().from(users).where(eq(users.id, decoded.userId)).get();
-        const expiresIn = new Date(session.expiresAt).getTime() - new Date().getTime();
-        if (expiresIn < 60000) {
-          console.warn("Session about to expire");
-        }
+      } else if (session) {
+        // Revoke near-expiry/expired session to avoid ambiguous auth state.
+        await db.delete(sessions).where(eq(sessions.token, token));
+        clearSessionCookie(res);
       }
     } catch (error) {
       // Invalid token
