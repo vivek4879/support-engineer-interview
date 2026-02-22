@@ -24,3 +24,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Keep typed text readable in form controls across color schemes. */
+input,
+textarea,
+select {
+  background-color: #ffffff;
+  color: #111827;
+  caret-color: #111827;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
