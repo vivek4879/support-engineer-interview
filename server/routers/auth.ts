@@ -15,23 +15,35 @@ import {
   replaceUserSession,
   SESSION_MAX_AGE_SECONDS,
 } from "@/lib/utils/session";
+import { validatePasswordStrength } from "@/lib/utils/password";
 
 export const authRouter = router({
   signup: publicProcedure
     .input(
-      z.object({
-        email: z.string().email().toLowerCase(),
-        password: z.string().min(8),
-        firstName: z.string().min(1),
-        lastName: z.string().min(1),
-        phoneNumber: z.string().regex(/^\+?\d{10,15}$/),
-        dateOfBirth: z.string(),
-        ssn: z.string().regex(/^\d{9}$/),
-        address: z.string().min(1),
-        city: z.string().min(1),
-        state: z.string().length(2).toUpperCase(),
-        zipCode: z.string().regex(/^\d{5}$/),
-      })
+      z
+        .object({
+          email: z.string().email().toLowerCase(),
+          password: z.string(),
+          firstName: z.string().min(1),
+          lastName: z.string().min(1),
+          phoneNumber: z.string().regex(/^\+?\d{10,15}$/),
+          dateOfBirth: z.string(),
+          ssn: z.string().regex(/^\d{9}$/),
+          address: z.string().min(1),
+          city: z.string().min(1),
+          state: z.string().length(2).toUpperCase(),
+          zipCode: z.string().regex(/^\d{5}$/),
+        })
+        .superRefine((input, ctx) => {
+          const passwordIssue = validatePasswordStrength(input.password);
+          if (passwordIssue) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["password"],
+              message: passwordIssue,
+            });
+          }
+        })
     )
     .mutation(async ({ input, ctx }) => {
       const existingUser = await db.select().from(users).where(eq(users.email, input.email)).get();

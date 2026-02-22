@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { trpc } from "@/lib/trpc/client";
 import Link from "next/link";
+import { validatePasswordStrength } from "@/lib/utils/password";
 
 type SignupFormData = {
   email: string;
@@ -101,15 +102,11 @@ export default function SignupPage() {
                   {...register("password", {
                     required: "Password is required",
                     minLength: {
-                      value: 8,
-                      message: "Password must be at least 8 characters",
+                      value: 12,
+                      message: "Password must be at least 12 characters",
                     },
                     validate: {
-                      notCommon: (value) => {
-                        const commonPasswords = ["password", "12345678", "qwerty"];
-                        return !commonPasswords.includes(value.toLowerCase()) || "Password is too common";
-                      },
-                      hasNumber: (value) => /\d/.test(value) || "Password must contain a number",
+                      strongPassword: (value) => validatePasswordStrength(value) || true,
                     },
                   })}
                   type="password"
