@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { trpc } from "@/lib/trpc/client";
 import { refreshQueriesAfterFunding } from "@/lib/utils/query-refresh";
 import { isValidCardNumber, normalizeCardNumber } from "@/lib/utils/card";
+import { validateFundingAmountInput } from "@/lib/utils/money";
 
 interface FundingModalProps {
   accountId: number;
@@ -40,7 +41,8 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
     setError("");
 
     try {
-      const amount = parseFloat(data.amount);
+      const normalizedAmountInput = data.amount.trim();
+      const amount = Number(normalizedAmountInput);
       const normalizedAccountNumber =
         data.fundingType === "card" ? normalizeCardNumber(data.accountNumber) : data.accountNumber;
       const normalizedRoutingNumber = data.fundingType === "bank" ? data.routingNumber?.trim() : undefined;
@@ -81,18 +83,13 @@ export function FundingModal({ accountId, onClose, onSuccess }: FundingModalProp
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span className="text-gray-500 sm:text-sm">$</span>
               </div>
-              <input
-                {...register("amount", {
-                  required: "Amount is required",
-                  pattern: {
-                    value: /^\d+\.?\d{0,2}$/,
-                    message: "Invalid amount format",
-                  },
-                  validate: {
-                    minAmount: (value) => parseFloat(value) >= 0.01 || "Amount must be at least $0.01",
-                    maxAmount: (value) => parseFloat(value) <= 10000 || "Amount cannot exceed $10,000",
-                  },
-                })}
+                <input
+                  {...register("amount", {
+                    required: "Amount is required",
+                    validate: {
+                      validAmountInput: (value) => validateFundingAmountInput(value) || true,
+                    },
+                  })}
                 type="text"
                 className="pl-7 block w-full rounded-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border"
                 placeholder="0.00"
