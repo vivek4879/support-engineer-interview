@@ -6,6 +6,7 @@ import { accounts, transactions } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { normalizeCurrencyAmount } from "@/lib/utils/money";
 import { requireEntity } from "@/lib/utils/guards";
+import { escapeHtml } from "@/lib/utils/sanitize";
 
 function generateAccountNumber(): string {
   return Math.floor(Math.random() * 1000000000)
@@ -183,6 +184,7 @@ export const accountRouter = router({
 
         enrichedTransactions.push({
           ...transaction,
+          description: transaction.description ? escapeHtml(transaction.description) : transaction.description,
           accountType: accountDetails?.accountType,
         });
       }
